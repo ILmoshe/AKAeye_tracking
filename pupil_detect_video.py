@@ -61,6 +61,9 @@ TODO: cv.HoughCircles(src, circles, cv.HOUGH_GRADIENT,
 
 import cv2
 import numpy as np
+from datetime import datetime
+
+DATA_csv = np.array([['time', 'x', 'y', 'w', 'h', "threshold_sum"]])
 
 cap = cv2.VideoCapture(0)  # TODO: decrease image size
 # out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (500, 450))
@@ -75,7 +78,8 @@ while cap.isOpened():
         gray_roi = cv2.medianBlur(gray_roi, 5)
 
         flipped = np.array([[((cell - 255) ** 2) / 255 for cell in row] for row in gray_roi])
-        threshold = cv2.threshold(flipped, 115, 255, cv2.THRESH_BINARY_INV)[1]
+        flipped2 = np.array([[np.abs(cell - 255) for cell in row] for row in flipped])
+        threshold = cv2.threshold(flipped2, 130, 255, cv2.THRESH_BINARY_INV)[1]
         contours = cv2.findContours(np.uint8(threshold), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[1]
         # circles = cv2.HoughCircles(np.uint8(gray_roi), cv2.HOUGH_GRADIENT, 1, 100,
         #                            param1=100, param2=10, minRadius=20, maxRadius=60)
@@ -89,17 +93,17 @@ while cap.isOpened():
         # # TODO: cv.HoughCircles(src, circles, cv.HOUGH_GRADIENT,
         #                  #      1, 9, 20, 40, 40, 0);
 
-        circles = cv2.HoughCircles(np.uint8(flipped), cv2.HOUGH_GRADIENT,
-                                   1, 11, param1=16, param2=35, minRadius=20, maxRadius=60)
+        # circles = cv2.HoughCircles(np.uint8(flipped), cv2.HOUGH_GRADIENT,
+        #                           1, 100, param1=10, param2=35, minRadius=10, maxRadius=60)
 
         contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
-        if circles is not None:
-            circles = np.uint16(np.around(circles))
-            for i in circles[0, :]:
-                # draw the outer circle
-                cv2.circle(roi, (i[0], i[1]), i[2], (0, 255, 0), 2)
-                # draw the center of the circle
-                cv2.circle(roi, (i[0], i[1]), 2, (0, 0, 255), 3)
+        # if circles is not None:
+        #     circles = np.uint16(np.around(circles))
+        #     for i in circles[0, :]:
+        #         # draw the outer circle
+        #         cv2.circle(roi, (i[0], i[1]), i[2], (0, 255, 0), 2)
+        #         # draw the center of the circle
+        #         cv2.circle(roi, (i[0], i[1]), 2, (0, 0, 255), 3)
 
         # TODO
         #  import numpy as np
@@ -128,12 +132,15 @@ while cap.isOpened():
 
             cv2.polylines(roi, np.int32([points]), isClosed=False, color=(128, 0, 200))
 
-            cv2.putText(roi, text='[Press Q to Exit]', org=(int(cols - 180), int(rows - 15)),
+            cv2.putText(roi, text=f"X:{x} Y:{y}  W:{w} H:{h}", org=(int(cols - 280), int(rows - 15)),
                         fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=0.6, color=(0, 0, 0))
             cv2.putText(threshold, text='[Press Q to Exit]', org=(int(cols - 180), int(rows - 15)),
                         fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=0.6, color=(255, 255, 255))
             cv2.putText(gray_roi, text='[Press Q to Exit]', org=(int(cols - 180), int(rows - 15)),
                         fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=0.6, color=(0, 0, 0))
+            helper = np.array([[str(datetime.now()), x, y, w, h, np.sum(threshold)]])
+            DATA_csv = np.concatenate((DATA_csv, helper))
+
             break
 
         cv2.imshow("roi", roi)
@@ -144,6 +151,9 @@ while cap.isOpened():
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     if cv2.waitKey(15) & 0xFF == ord('q'):  # Press 'Q' on the keyboard to exit the playback
+        # call csv and insert all the data
+        from export import write
+        write("coord.csv", DATA_csv)
         break
 
 cap.release()
